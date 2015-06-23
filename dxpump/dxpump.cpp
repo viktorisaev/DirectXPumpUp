@@ -17,6 +17,8 @@ ID3D11DeviceContext1*   g_pImmediateContext1 = nullptr;
 IDXGISwapChain*         g_pSwapChain = nullptr;
 IDXGISwapChain1*        g_pSwapChain1 = nullptr;
 ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
+ID3D11Texture2D*        g_pDepthStencil = nullptr;
+ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
 
 ID3D11VertexShader*     g_pVertexShader = nullptr;
 ID3D11PixelShader*      g_pPixelShader = nullptr;
@@ -245,7 +247,7 @@ HRESULT InitDevice()
 	pBackBuffer->Release();
 	if (FAILED(hr))
 		return hr;
-	/*
+	
 	// Create depth stencil texture
 	D3D11_TEXTURE2D_DESC descDepth;
 	ZeroMemory(&descDepth, sizeof(descDepth));
@@ -273,8 +275,8 @@ HRESULT InitDevice()
 	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
 	if (FAILED(hr))
 		return hr;
-*/
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr/*g_pDepthStencilView*/);
+
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, /*nullptr*/g_pDepthStencilView);
 
 	// Setup the viewport
 	D3D11_VIEWPORT vp;
@@ -513,7 +515,7 @@ void Render()
 	// clean screen, prepare for a new frame
 	static DWORD nFrame = 0;
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, (nFrame % 2 == 0) ? Colors::MidnightBlue : Colors::Azure);
-//	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 //	nFrame += 1;
 
 	// Update our time
@@ -583,8 +585,8 @@ void CleanupDevice()
 	if (g_pVertexLayout) g_pVertexLayout->Release();
 	if (g_pVertexShader) g_pVertexShader->Release();
 	if (g_pPixelShader) g_pPixelShader->Release();
-//	if (g_pDepthStencil) g_pDepthStencil->Release();
-//	if (g_pDepthStencilView) g_pDepthStencilView->Release();1
+	if (g_pDepthStencil) g_pDepthStencil->Release();
+	if (g_pDepthStencilView) g_pDepthStencilView->Release();
 	if (g_pRenderTargetView) g_pRenderTargetView->Release();
 	if (g_pSwapChain1) g_pSwapChain1->Release();
 	if (g_pSwapChain) g_pSwapChain->Release();
