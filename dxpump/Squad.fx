@@ -35,5 +35,6 @@ VS_TO_PS VS(VS_INPUT input)
 float4 PS(VS_TO_PS input) : SV_Target
 {
 	float4 tex = txDiffuse.Sample(samLinear, input.Tex);
-    return tex;
+//	float4 tex = float4(1.0f, 1.0f, 0.0f, 1.0f);
+	return tex;
 }

@@ -34,8 +34,14 @@ ID3D11Buffer*                       g_pCBChangesEveryFrame = nullptr;
 ID3D11ShaderResourceView*           g_pTextureRV = nullptr;
 ID3D11SamplerState*                 g_pSamplerLinear = nullptr;
 
-ID3D11VertexShader*     g_pSquadVertexShader = nullptr;
-ID3D11PixelShader*      g_pSquadPixelShader = nullptr;
+const UINT32	TEX_SIZE = 64;
+ID3D11VertexShader*			g_pSquadVertexShader = nullptr;
+ID3D11PixelShader*			g_pSquadPixelShader = nullptr;
+ID3D11Texture2D*			g_pSquadTexture = nullptr;
+ID3D11RenderTargetView*		g_pSquadRenderTargetView = nullptr;
+ID3D11ShaderResourceView*	g_pSquadTextureView = nullptr;
+ID3D11Buffer*				g_pSquadVertexBuffer = nullptr;
+ID3D11Buffer*				g_pSquadIndexBuffer = nullptr;
 
 
 XMMATRIX                            g_World;
@@ -110,6 +116,9 @@ HRESULT CompileShaderFromFile(WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szS
 	return S_OK;
 }
 
+UINT width;
+UINT height;
+
 
 HRESULT InitDevice()
 {
@@ -117,8 +126,8 @@ HRESULT InitDevice()
 
 	RECT rc;
 	GetClientRect(g_hWnd, &rc);
-	UINT width = rc.right - rc.left;
-	UINT height = rc.bottom - rc.top;
+	width = rc.right - rc.left;
+	height = rc.bottom - rc.top;
 
 	UINT createDeviceFlags = 0;
 #ifdef _DEBUG
@@ -280,17 +289,44 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, /*nullptr*/g_pDepthStencilView);
 
-	// Setup the viewport
-	D3D11_VIEWPORT vp;
-	vp.Width = (FLOAT)width;
-	vp.Height = (FLOAT)height;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
-	vp.TopLeftX = 0;
-	vp.TopLeftY = 0;
-	g_pImmediateContext->RSSetViewports(1, &vp);
+	// Create renderto texture
+	D3D11_TEXTURE2D_DESC descTex;
+	ZeroMemory(&descTex, sizeof(descTex));
+	descTex.Width = TEX_SIZE;
+	descTex.Height = TEX_SIZE;
+	descTex.MipLevels = 1;
+	descTex.ArraySize = 1;
+	descTex.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	descTex.SampleDesc.Count = 1;
+	descTex.SampleDesc.Quality = 0;
+	descTex.Usage = D3D11_USAGE_DEFAULT;
+	descTex.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	descTex.CPUAccessFlags = 0;
+	descTex.MiscFlags = 0;
+	hr = g_pd3dDevice->CreateTexture2D(&descTex, nullptr, &g_pSquadTexture);
+	if (FAILED(hr))
+		return hr;
+
+	D3D11_RENDER_TARGET_VIEW_DESC descRTV;
+	ZeroMemory(&descRTV, sizeof(descRTV));
+	descRTV.Format = descTex.Format;
+	descRTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	descRTV.Texture2D.MipSlice = 0;
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pSquadTexture, &descRTV, &g_pSquadRenderTargetView);
+	if (FAILED(hr))
+		return hr;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC descSRV;
+	ZeroMemory(&descSRV, sizeof(descSRV));
+	descSRV.Format = descTex.Format;
+	descSRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	descSRV.Texture2D.MipLevels = 1;
+	descSRV.Texture2D.MostDetailedMip = 0;
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pSquadTexture, &descSRV, &g_pSquadTextureView);
+	if (FAILED(hr))
+		return hr;
+
 
 
 	// Compile the vertex shader
@@ -402,6 +438,7 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
+
 	// Create vertex buffer
 	SimpleVertex vertices[] =
 	{
@@ -434,23 +471,12 @@ HRESULT InitDevice()
 		{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) },
 		{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 0.0f) },
 		{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) },
-
-		{ XMFLOAT3(-1.0f, -1.0f, -1.4f), XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT3(1.0f, -1.0f, -1.4f), XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT3(1.0f, 1.0f, -1.4f), XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT3(-1.0f, 1.0f, -1.4f), XMFLOAT2(0.0f, 0.0f) },
-
-		{ XMFLOAT3(-1.0f, -1.0f, 1.5f), XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT3(1.0f, -1.0f, 1.5f), XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT3(1.0f, 1.0f, 1.5f), XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT3(-1.0f, 1.0f, 1.5f), XMFLOAT2(1.0f, 0.0f) },
-
 	};
 
 	D3D11_BUFFER_DESC bd;
 	ZeroMemory(&bd, sizeof(bd));
 	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(SimpleVertex) * 32;
+	bd.ByteWidth = sizeof(SimpleVertex) * 24;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	D3D11_SUBRESOURCE_DATA InitData;
@@ -460,18 +486,10 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	// Set vertex buffer
-	UINT stride = sizeof(SimpleVertex);
-	UINT offset = 0;
-	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
 
 	// Create index buffer
-	// Create vertex buffer
 	WORD indices[] =
 	{
-		27, 25, 24,
-		26, 25, 27,
-
 		3, 1, 0,
 		2, 1, 3,
 
@@ -489,13 +507,10 @@ HRESULT InitDevice()
 
 		22, 20, 21,
 		23, 20, 22,
-
-		31, 29, 28,
-		30, 29, 31,
 	};
 
 	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(WORD) * 48;
+	bd.ByteWidth = sizeof(WORD) * 36;
 	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	InitData.pSysMem = indices;
@@ -503,8 +518,49 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	// Set index buffer
-	g_pImmediateContext->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+
+
+	// squad vertex+index buffers
+	{
+
+		SimpleVertex squadVertices[] =
+		{
+			{ XMFLOAT3(-0.9f,	 0.9f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+			{ XMFLOAT3(	0.9f,	 0.9f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
+			{ XMFLOAT3(-0.9f,	-0.9f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
+			{ XMFLOAT3( 0.9f,	-0.9f, 0.0f), XMFLOAT2(1.0f, 1.0f) }
+		};
+
+		ZeroMemory(&bd, sizeof(bd));
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.ByteWidth = sizeof(SimpleVertex) * 4;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = 0;
+		ZeroMemory(&InitData, sizeof(InitData));
+		InitData.pSysMem = squadVertices;
+		hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pSquadVertexBuffer);
+		if (FAILED(hr))
+			return hr;
+
+		// Create index buffer
+		WORD squadIndices[] =
+		{
+			0, 1, 2,
+			2, 1, 3,
+		};
+
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.ByteWidth = sizeof(WORD) * 6;
+		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		bd.CPUAccessFlags = 0;
+		InitData.pSysMem = squadIndices;
+		hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pSquadIndexBuffer);
+		if (FAILED(hr))
+			return hr;
+	}
+
+
 
 	// Set primitive topology
 	g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -593,21 +649,99 @@ void Render()
 	cb.vMeshColor = g_vMeshColor;
 	g_pImmediateContext->UpdateSubresource(g_pCBChangesEveryFrame, 0, nullptr, &cb, 0, 0);
 
+	{
+		// Main activity: Render a triangle
+		g_pImmediateContext->OMSetRenderTargets(1, &g_pSquadRenderTargetView, nullptr/*g_pDepthStencilView*/);
 
-	// Main activity: Render a triangle
-	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBNeverChanges);
-	g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pCBChangeOnResize);
-	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+		g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
+		g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
 
-	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+		g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBNeverChanges);
+		g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pCBChangeOnResize);
+		g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
 
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
-	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+		g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+
+		g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
+		g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+
+		// Set vertex buffer
+		UINT stride = sizeof(SimpleVertex);
+		UINT offset = 0;
+		g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+		// Set index buffer
+		g_pImmediateContext->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+		// Setup the viewport
+		D3D11_VIEWPORT vp;
+		vp.Width = (FLOAT)TEX_SIZE;
+		vp.Height = (FLOAT)TEX_SIZE;
+		vp.MinDepth = 0.0f;
+		vp.MaxDepth = 1.0f;
+		vp.TopLeftX = 0;
+		vp.TopLeftY = 0;
+		g_pImmediateContext->RSSetViewports(1, &vp);
+
+		g_pImmediateContext->DrawIndexed(36, 0, 0);
+	}
 
 
-	g_pImmediateContext->DrawIndexed(48, 0, 0);
+	//{
+	//	// render squad
+	//	g_pImmediateContext->OMSetRenderTargets(1, &g_pSquadRenderTargetView, nullptr);
+
+	//	g_pImmediateContext->VSSetShader(g_pSquadVertexShader, nullptr, 0);
+	//	g_pImmediateContext->PSSetShader(g_pSquadPixelShader, nullptr, 0);
+
+	//	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
+	//	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+
+	//	 Set vertex buffer
+	//	UINT stride = sizeof(SimpleVertex);
+	//	UINT offset = 0;
+	//	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pSquadVertexBuffer, &stride, &offset);
+	//	 Set index buffer
+	//	g_pImmediateContext->IASetIndexBuffer(g_pSquadIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+	//	g_pImmediateContext->DrawIndexed(6, 0, 0);
+
+	//	ID3D11ShaderResourceView *CSRV[] = { nullptr };
+	//	g_pImmediateContext->PSSetShaderResources(0, 1, CSRV);
+	//}
+
+
+	{
+		// render squad
+		g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
+
+		g_pImmediateContext->VSSetShader(g_pSquadVertexShader, nullptr, 0);
+		g_pImmediateContext->PSSetShader(g_pSquadPixelShader, nullptr, 0);
+
+		g_pImmediateContext->PSSetShaderResources(0, 1, &g_pSquadTextureView);
+		g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+
+		// Set vertex buffer
+		UINT stride = sizeof(SimpleVertex);
+		UINT offset = 0;
+		g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pSquadVertexBuffer, &stride, &offset);
+		// Set index buffer
+		g_pImmediateContext->IASetIndexBuffer(g_pSquadIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+		// Setup the viewport
+		D3D11_VIEWPORT vp;
+		vp.Width = (FLOAT)width;
+		vp.Height = (FLOAT)height;
+		vp.MinDepth = 0.0f;
+		vp.MaxDepth = 1.0f;
+		vp.TopLeftX = 0;
+		vp.TopLeftY = 0;
+		g_pImmediateContext->RSSetViewports(1, &vp);
+
+		g_pImmediateContext->DrawIndexed(6, 0, 0);
+
+		ID3D11ShaderResourceView *CSRV[] = { nullptr };
+		g_pImmediateContext->PSSetShaderResources(0, 1, CSRV);
+	}
 
 	// finally, present
 	g_pSwapChain->Present(0, 0);
@@ -622,6 +756,13 @@ void CleanupDevice()
 	if (g_pCBNeverChanges) g_pCBNeverChanges->Release();
 	if (g_pCBChangeOnResize) g_pCBChangeOnResize->Release();
 	if (g_pCBChangesEveryFrame) g_pCBChangesEveryFrame->Release();
+
+	if (g_pSquadTexture) g_pSquadTexture->Release();
+	if (g_pSquadRenderTargetView) g_pSquadRenderTargetView->Release();
+	if (g_pSquadTextureView) g_pSquadTextureView->Release();
+	if (g_pSquadVertexShader) g_pSquadVertexShader->Release();
+	if (g_pSquadPixelShader) g_pSquadPixelShader->Release();
+
 
 	if (g_pIndexBuffer) g_pIndexBuffer->Release();
 	if (g_pVertexBuffer) g_pVertexBuffer->Release();

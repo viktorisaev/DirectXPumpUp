@@ -54,11 +54,8 @@ float4 PS(PS_INPUT input/*, float dep : SV_Depth*/) : SV_Target
 {
 	float4 tex = txDiffuse.Sample(samLinear, input.Tex);
 
-	float zzz = ( ( (input.Pos.z - 0.3f) / input.Pos.w ) + 0.1f ) * 3.0f;
-
-	// highlighted by Z
-	return tex *float4(zzz, zzz, zzz, 1.0f);
+//	return tex *float4(zzz, zzz, zzz, 1.0f);
 
 	// colored from cbuffer
-//	return tex * float4(1.0f, 1.0f, 0.0f, 1.0f) *vMeshColor;
+	return tex * float4(1.0f, 1.0f, 0.0f, 1.0f) *vMeshColor;
 }
