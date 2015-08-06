@@ -62,5 +62,8 @@
     <FxCompile Include="SimpleTriangle.fx">
       <Filter>Source Files</Filter>
     </FxCompile>
+    <FxCompile Include="Squad.fx">
+      <Filter>Source Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

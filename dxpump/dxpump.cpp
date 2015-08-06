@@ -34,6 +34,10 @@ ID3D11Buffer*                       g_pCBChangesEveryFrame = nullptr;
 ID3D11ShaderResourceView*           g_pTextureRV = nullptr;
 ID3D11SamplerState*                 g_pSamplerLinear = nullptr;
 
+ID3D11VertexShader*     g_pSquadVertexShader = nullptr;
+ID3D11PixelShader*      g_pSquadPixelShader = nullptr;
+
+
 XMMATRIX                            g_World;
 XMMATRIX                            g_View;
 XMMATRIX                            g_Projection;
@@ -322,6 +326,45 @@ HRESULT InitDevice()
 	pPSBlob->Release();
 	if (FAILED(hr))
 		return hr;
+
+
+
+
+	// Compile the vertex shader
+	ID3DBlob* pSVSBlob = nullptr;
+	hr = CompileShaderFromFile(L"Squad.fx", "VS", "vs_4_0", &pSVSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(pSVSBlob->GetBufferPointer(), pSVSBlob->GetBufferSize(), nullptr, &g_pSquadVertexShader);
+	if (FAILED(hr))
+	{
+		pSVSBlob->Release();
+		return hr;
+	}
+
+	// Compile the pixel shader
+	ID3DBlob* pSPSBlob = nullptr;
+	hr = CompileShaderFromFile(L"Squad.fx", "PS", "ps_4_0", &pSPSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the pixel shader
+	hr = g_pd3dDevice->CreatePixelShader(pSPSBlob->GetBufferPointer(), pSPSBlob->GetBufferSize(), nullptr, &g_pSquadPixelShader);
+	pSPSBlob->Release();
+	if (FAILED(hr))
+		return hr;
+
+
 
 
 	// Define the input layout
